@@ -26,6 +26,7 @@ from forte.data.ontology.top import (
     Annotation,
     Generics,
     AudioAnnotation,
+    ImageAnnotation,
     Group,
     Link,
     MultiPackGeneric,
@@ -909,6 +910,7 @@ class DataStoreTest(unittest.TestCase):
         # set attribute with originally none value
         self.data_store.set_attribute(1234, "document_class", "Class D")
         speaker = self.data_store.get_attribute(9999, "speaker")
+        
         doc_class = self.data_store.get_attribute(1234, "document_class")
 
         self.assertEqual(speaker, "student")

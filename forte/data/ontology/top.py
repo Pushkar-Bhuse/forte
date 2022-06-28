@@ -1014,7 +1014,6 @@ class Grids(Entry):
             self._width,
         )
 
-
 class Region(ImageAnnotation):
     """
     A region class associated with an image payload.
@@ -1038,6 +1037,7 @@ class Region(ImageAnnotation):
         return intersection / union
 
 
+@dataclass
 class Box(Region):
     """
     A box class with a center position and a box configuration.
@@ -1056,6 +1056,11 @@ class Box(Region):
         height: the height of the box, the unit is one image array entry.
         width: the width of the box, the unit is one image array entry.
     """
+
+    cy: int
+    cx: int
+    height: int
+    width: int
 
     def __init__(
         self,
@@ -1158,7 +1163,7 @@ class Box(Region):
         union = self.area + other.area - intersection
         return intersection / union
 
-
+@dataclass
 class BoundingBox(Box):
     """
     A bounding box class that associates with image payload and grids and
@@ -1185,6 +1190,13 @@ class BoundingBox(Box):
             the grid, the unit is one grid cell.
 
     """
+
+    height: int
+    width: int
+    grid_height: int
+    grid_width: int
+    grid_cell_h_idx: int
+    grid_cell_w_idx: int
 
     def __init__(
         self,
