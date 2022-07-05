@@ -11,13 +11,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from enum import IntEnum
+import json
+from typing import Dict, List, Iterator, Tuple, Optional, Any, Type, Union
 
 from typing import Dict, List, Iterator, Tuple, Optional, Any, Type
 import uuid
 import logging
 from heapq import heappush, heappop
+import numpy as np
 from sortedcontainers import SortedList
 from typing_inspect import get_origin
+from forte.data.modality import Modality
+from forte.common.exception import ProcessExecutionException
 
 from forte.utils import get_class
 from forte.data.base_store import BaseStore
@@ -240,6 +246,11 @@ class DataStore(BaseStore):
             "forte.data.ontology.top.Link": 3}
         """
         self.__deletion_count: dict = {}
+
+
+        self.text_payloads: List[Payload] = []
+        self.audio_payloads: List[Payload] = []
+        self.image_payloads: List[Payload] = []
 
     def __getstate__(self):
         r"""
@@ -827,6 +838,78 @@ class DataStore(BaseStore):
                 get_class(entry_type_name),
             ):
                 yield entry_type_key
+
+    def _get_payload_at(
+        self, modality: IntEnum, payload_index: int
+    ):  # -> Union[TextPayload, AudioPayload, ImagePayload]:
+        """
+        Get Payload of requested modality at the requested payload index.
+
+        Args:
+            modality: data modality among "text", "audio", "image"
+            payload_index: the zero-based index of the Payload
+                in this DataPack's Payload entries of the requested modality.
+
+        Raises:
+            ValueError: raised when the requested modality is not supported.
+
+        Returns:
+            Payload entry containing text data, image or audio data.
+
+        """
+        supported_modality = [enum.name for enum in Modality]
+
+        try:
+            # if modality.name == "text":
+            if modality == Modality.Text:
+                payloads_length = len(self.text_payloads)
+                payload = self.text_payloads[payload_index]
+            # elif modality.name == "audio":
+            elif modality == Modality.Audio:
+                payloads_length = len(self.audio_payloads)
+                payload = self.audio_payloads[payload_index]
+            # elif modality.name == "image":
+            elif modality == Modality.Image:
+                payloads_length = len(self.image_payloads)
+                payload = self.image_payloads[payload_index]
+            else:
+                raise ValueError(
+                    f"Provided modality {modality.name} is not supported."
+                    "Please provide one of modality among"
+                    f" {supported_modality}."
+                )
+        except IndexError as e:
+            raise ProcessExecutionException(
+                f"payload index ({payload_index}) "
+                f"is larger or equal to {modality.name} payload list"
+                f" length ({payloads_length}). "
+                f"Please input a {modality.name} payload index less than it."
+            ) from e
+        return payload
+
+    def get_payload_data_at(
+        self, modality: IntEnum, payload_index: int
+    ) -> Union[str, np.ndarray]:
+        """
+        Get Payload of requested modality at the requested payload index.
+
+        Args:
+            modality: data modality among "text", "audio", "image"
+            payload_index: the zero-based index of the Payload
+                in this DataPack's Payload entries of the requested modality.
+
+        Raises:
+            ValueError: raised when the requested modality is not supported.
+
+        Returns:
+            different data types for different data modalities.
+
+            1. str data for text data.
+
+            2. Numpy array for image and audio data.
+
+        """
+        return self._data_store.get_payload_at(modality, payload_index).cache
 
     def _is_annotation(self, type_name: str) -> bool:
         r"""This function takes a type_name and returns whether a type

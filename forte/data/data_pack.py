@@ -173,8 +173,6 @@ class DataPack(BasePack[Entry, Link, Group]):
         self.__replace_back_operations: ReplaceOperationsType = []
         self.__processed_original_spans: List[Tuple[Span, Span]] = []
 
-        self.__orig_text_len: int = 0
-
         self._index: DataIndex = DataIndex()
 
     def __getstate__(self):
@@ -196,18 +194,10 @@ class DataPack(BasePack[Entry, Link, Group]):
         """
         self._entry_converter = EntryConverter()
         super().__setstate__(state)
-
-        # For backward compatibility.
-        if "replace_back_operations" in self.__dict__:
-            self.__replace_back_operations = self.__dict__.pop(
-                "replace_back_operations"
-            )
-        if "processed_original_spans" in self.__dict__:
-            self.__processed_original_spans = self.__dict__.pop(
-                "processed_original_spans"
-            )
-        if "orig_text_len" in self.__dict__:
-            self.__orig_text_len = self.__dict__.pop("orig_text_len")
+        for payload in (
+            self._data_store.text_payloads + self._data_store.audio_payloads + self._data_store.image_payloads
+        ):
+            payload.set_pack(self)
 
         self._index = DataIndex()
         self._index.update_basic_index(list(iter(self)))
@@ -234,11 +224,6 @@ class DataPack(BasePack[Entry, Link, Group]):
     def audio(self) -> Optional[np.ndarray]:
         r"""Return the audio of the data pack"""
         return self._audio
-
-    @property
-    def sample_rate(self) -> Optional[int]:
-        r"""Return the sample rate of the audio data"""
-        return getattr(self._meta, "sample_rate")
 
     @property
     def all_annotations(self) -> Iterator[Annotation]:
@@ -421,7 +406,9 @@ class DataPack(BasePack[Entry, Link, Group]):
     def groups(self, val):
         self._groups = val
 
-    def get_span_text(self, begin: int, end: int) -> str:
+    def get_span_text(
+        self, begin: int, end: int, text_payload_index: int = 0
+    ) -> str:
         r"""Get the text in the data pack contained in the span.
 
         Args:
@@ -431,7 +418,9 @@ class DataPack(BasePack[Entry, Link, Group]):
         Returns:
             The text within this span.
         """
-        return self._text[begin:end]
+        return cast(
+            str, self._data_store.get_payload_data_at(Modality.Text, text_payload_index)
+        )[begin:end]
 
     def get_span_audio(self, begin: int, end: int) -> np.ndarray:
         r"""Get the audio in the data pack contained in the span.
@@ -446,20 +435,12 @@ class DataPack(BasePack[Entry, Link, Group]):
         Returns:
             The audio within this span.
         """
-        if self._audio is None:
-            raise ProcessExecutionException(
-                "The audio payload of this DataPack is not set. Please call"
-                " method `set_audio` before running `get_span_audio`."
-            )
-        return self._audio[begin:end]
-
-    def get_image_array(self, image_payload_idx: int):
-        if image_payload_idx >= len(self.payloads):
-            raise ValueError(
-                f"The input image payload index{(image_payload_idx)}"
-                f" out of range. It should be less than {len(self.payloads)}"
-            )
-        return self.payloads[image_payload_idx]
+        return cast(
+            np.ndarray,
+            self._data_store.get_payload_data_at(Modality.Audio, audio_payload_index)[
+                begin:end
+            ],
+        )
 
     def set_text(
         self,
@@ -488,8 +469,29 @@ class DataPack(BasePack[Entry, Link, Group]):
             self.__processed_original_spans,
             self.__orig_text_len,
         ) = data_utils_io.modify_text_and_track_ops(text, span_ops)
+        # temporary solution for backward compatibility
+        # past API use this method to add a single text in the datapack
+        if len(self._data_store.text_payloads) == 0 and text_payload_index == 0:
+            from ft.onto.base_ontology import (  # pylint: disable=import-outside-toplevel
+                TextPayload,
+            )
 
-    def set_audio(self, audio: np.ndarray, sample_rate: int):
+            tp = TextPayload(self, text_payload_index)
+        else:
+            tp = self._data_store.get_payload_at(Modality.Text, text_payload_index)
+
+        tp.set_cache(text)
+
+        tp.replace_back_operations = replace_back_operations
+        tp.processed_original_spans = processed_original_spans
+        tp.orig_text_len = orig_text_len
+
+    def set_audio(
+        self,
+        audio: np.ndarray,
+        sample_rate: int,
+        audio_payload_index: int = 0,
+    ):
         r"""Set the audio payload and sample rate of the :class:`~forte.data.data_pack.DataPack`
         object.
 
@@ -497,8 +499,19 @@ class DataPack(BasePack[Entry, Link, Group]):
             audio: A numpy array storing the audio waveform.
             sample_rate: An integer specifying the sample rate.
         """
-        self._audio = audio
-        self.set_meta(sample_rate=sample_rate)
+        # temporary solution for backward compatibility
+        # past API use this method to add a single audio in the datapack
+        if len(self._data_store.audio_payloads) == 0 and audio_payload_index == 0:
+            from ft.onto.base_ontology import (  # pylint: disable=import-outside-toplevel
+                AudioPayload,
+            )
+
+            ap = AudioPayload(self)
+        else:
+            ap = self.data_store.get_payload_at(Modality.Audio, audio_payload_index)
+
+        ap.set_cache(audio)
+        ap.sample_rate = sample_rate
 
     def get_original_text(self):
         r"""Get original unmodified text from the :class:`~forte.data.data_pack.DataPack` object.
@@ -507,6 +520,7 @@ class DataPack(BasePack[Entry, Link, Group]):
             Original text after applying the `replace_back_operations` of
             :class:`~forte.data.data_pack.DataPack` object to the modified text
         """
+        tp = self._data_store.get_payload_at(Modality.Text, text_payload_index)
         original_text, _, _, _ = data_utils_io.modify_text_and_track_ops(
             self._text, self.__replace_back_operations
         )
@@ -588,7 +602,10 @@ class DataPack(BasePack[Entry, Link, Group]):
             Returns:
                 Original index that aligns with input_index
             """
-            if len(self.__processed_original_spans) == 0:
+            processed_original_spans = self._data_store.get_payload_at(
+                Modality.Text, 0
+            ).processed_original_spans
+            if len(processed_original_spans) == 0:
                 return input_index
 
             len_processed_text = len(self._text)
@@ -951,9 +968,13 @@ class DataPack(BasePack[Entry, Link, Group]):
                 str: context data.
             """
             if issubclass(c_type, Annotation):
-                return self.text[context.begin : context.end]
+                return self._data_store.get_payload_data_at(Modality.Text, payload_index)[
+                    context.begin : context.end
+                ]
             elif issubclass(c_type, AudioAnnotation):
-                return self.audio[context.begin : context.end]
+                return self._data_store.get_payload_data_at(Modality.Audio, payload_index)[
+                    context.begin : context.end
+                ]
             else:
                 raise NotImplementedError(
                     f"Context type is set to {context_type}"
@@ -1416,6 +1437,17 @@ class DataPack(BasePack[Entry, Link, Group]):
     def _save_entry_to_data_store(self, entry: Entry):
         r"""Save an existing entry object into DataStore"""
         self._entry_converter.save_entry_object(entry=entry, pack=self)
+
+        if isinstance(entry, Payload):
+            if entry.modality == Modality.Text:
+                entry.set_payload_index(len(self._data_store.text_payloads))
+                self._data_store.text_payloads.append(entry)
+            elif entry.modality == Modality.Audio:
+                entry.set_payload_index(len(self._data_store.audio_payloads))
+                self._data_store.audio_payloads.append(entry)
+            elif entry.modality == Modality.Image:
+                entry.set_payload_index(len(self._data_store.image_payloads))
+                self._data_store.image_payloads.append(entry)
 
     def _get_entry_from_data_store(self, tid: int) -> EntryType:
         r"""Generate a class object from entry data in DataStore"""
