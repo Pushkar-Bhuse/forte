@@ -85,6 +85,7 @@ class BaseStore:
             save_attribute: Boolean value indicating whether users want to
                 save attributes for field checks later during deserialization.
                 Attributes and their indices for every entry type will be saved.
+            indent: The indent parameter used to format the JSON file.
         Returns: String representation of the data pack.
         """
         if json_method == "json":

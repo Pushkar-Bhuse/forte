@@ -55,6 +55,7 @@ from forte.data.ontology.top import (
     ImageAnnotation,
     Grids,
     Payload,
+    TextPayload,
 )
 
 from forte.data.modality import Modality
@@ -227,9 +228,6 @@ class DataPack(BasePack[Entry, Link, Group]):
         If there is no text payload in the DataPack, it will return empty
         string.
 
-        Args:
-            text_payload_index: the index of the text payload. Defaults to 0.
-
         Raises:
             ValueError: raised when the index is out of bound of the text
                 payload list.
@@ -237,8 +235,11 @@ class DataPack(BasePack[Entry, Link, Group]):
         Returns:
             text data in the text payload.
         """
-        if len(self.text_payloads) > 0:
-            return str(self.get_payload_data_at(Modality.Text, 0))
+        if (
+            self._data_store.num_entries("forte.data.ontology.top.TextPayload")
+            > 0
+        ):
+            return self.get_payload_data_at(Modality.Text, 0)
         else:
             return ""
 
@@ -443,33 +444,30 @@ class DataPack(BasePack[Entry, Link, Group]):
         """
         supported_modality = [enum.name for enum in Modality]
 
+        if modality == Modality.Text:
+            payload_ontology = "forte.data.ontology.top.TextPayload"
+        elif modality == Modality.Audio:
+            payload_ontology = "forte.data.ontology.top.AudioPayload"
+        elif modality == Modality.Image:
+            payload_ontology = "forte.data.ontology.top.AudioPayload"
+        else:
+            raise ValueError(
+                f"Provided modality {modality.name} is not supported."
+                "Please provide one of modality among"
+                f" {supported_modality}."
+            )
+
         try:
-            # if modality.name == "text":
-            if modality == Modality.Text:
-                payloads_length = len(self.text_payloads)
-                payload = self.text_payloads[payload_index]
-            # elif modality.name == "audio":
-            elif modality == Modality.Audio:
-                payloads_length = len(self.audio_payloads)
-                payload = self.audio_payloads[payload_index]
-            # elif modality.name == "image":
-            elif modality == Modality.Image:
-                payloads_length = len(self.image_payloads)
-                payload = self.image_payloads[payload_index]
-            else:
-                raise ValueError(
-                    f"Provided modality {modality.name} is not supported."
-                    "Please provide one of modality among"
-                    f" {supported_modality}."
-                )
-        except IndexError as e:
+            return self._get_entry_from_data_store(
+                next(self._data_store.get(payload_ontology))[TID_INDEX]
+            )
+        except StopIteration as e:
             raise ProcessExecutionException(
                 f"payload index ({payload_index}) "
                 f"is larger or equal to {modality.name} payload list"
-                f" length ({payloads_length}). "
+                f" length ({self._data_store.num_entries(payload_ontology)}). "
                 f"Please input a {modality.name} payload index less than it."
             ) from e
-        return payload
 
     def get_payload_data_at(
         self, modality: IntEnum, payload_index: int
@@ -564,14 +562,11 @@ class DataPack(BasePack[Entry, Link, Group]):
         ) = data_utils_io.modify_text_and_track_ops(text, span_ops)
         # temporary solution for backward compatibility
         # past API use this method to add a single text in the datapack
+        tp: TextPayload
         if len(self.text_payloads) == 0 and text_payload_index == 0:
-            from ft.onto.base_ontology import (  # pylint: disable=import-outside-toplevel
-                TextPayload,
-            )
-
             tp = TextPayload(self, text_payload_index)
         else:
-            tp = self.get_payload_at(Modality.Text, text_payload_index)
+            tp = self.get_payload_at(Modality.Text, text_payload_index)  # type: ignore
 
         tp.set_cache(text)
 
@@ -619,7 +614,7 @@ class DataPack(BasePack[Entry, Link, Group]):
             Original text after applying the `replace_back_operations` of
             :class:`~forte.data.data_pack.DataPack` object to the modified text
         """
-        tp = self.get_payload_at(Modality.Text, text_payload_index)
+        tp: TextPayload = self.get_payload_at(Modality.Text, text_payload_index)  # type: ignore
         original_text, _, _, _ = data_utils_io.modify_text_and_track_ops(
             tp.cache, tp.replace_back_operations
         )
@@ -1548,16 +1543,16 @@ class DataPack(BasePack[Entry, Link, Group]):
         r"""Save an existing entry object into DataStore"""
         self._entry_converter.save_entry_object(entry=entry, pack=self)
 
-        if isinstance(entry, Payload):
-            if entry.modality == Modality.Text:
-                entry.set_payload_index(len(self.text_payloads))
-                self.text_payloads.append(entry)
-            elif entry.modality == Modality.Audio:
-                entry.set_payload_index(len(self.audio_payloads))
-                self.audio_payloads.append(entry)
-            elif entry.modality == Modality.Image:
-                entry.set_payload_index(len(self.image_payloads))
-                self.image_payloads.append(entry)
+        # if isinstance(entry, Payload):
+        #     if entry.modality == Modality.Text:
+        #         entry.set_payload_index(len(self.text_payloads))
+        #         self.text_payloads.append(entry)
+        #     elif entry.modality == Modality.Audio:
+        #         entry.set_payload_index(len(self.audio_payloads))
+        #         self.audio_payloads.append(entry)
+        #     elif entry.modality == Modality.Image:
+        #         entry.set_payload_index(len(self.image_payloads))
+        #         self.image_payloads.append(entry)
 
     def _get_entry_from_data_store(self, tid: int) -> EntryType:
         r"""Generate a class object from entry data in DataStore"""

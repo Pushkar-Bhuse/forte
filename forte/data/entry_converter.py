@@ -124,6 +124,10 @@ class EntryConverter:
                 tid=entry.tid,
                 allow_duplicate=allow_duplicate,
             )
+            # cache is a special attribute for payload type to hold data.
+            data_store_ref.set_attribute(
+                tid=entry.tid, attr_name="cache", attr_value=entry.cache
+            )
         elif data_store_ref._is_subclass(entry.entry_type(), Grids):
             # Will be deprecated in future
             data_store_ref.add_entry_raw(

@@ -63,6 +63,9 @@ __all__ = [
     "Box",
     "BoundingBox",
     "Payload",
+    "TextPayload",
+    "AudioPayload",
+    "ImagePayload",
 ]
 
 QueryType = Union[Dict[str, Any], np.ndarray]
@@ -1097,7 +1100,7 @@ class Box(Region):
 
     @property
     def center(self):
-        return (self._cy, self._cx)
+        return self._cy, self._cx
 
     @property
     def corners(self):
@@ -1229,14 +1232,13 @@ class BoundingBox(Box):
         )
 
 
+@dataclass
 class Payload(Entry):
     """
     A payload class that holds data cache of one modality and its data source uri.
 
     Args:
-        pack: The container that this `Payload` will
-            be added to.
-        modality: modality of the payload such as text, audio and image.
+        pack: The container that this `Payload` will be added to.
         payload_idx: the index of the payload in the DataPack's
             image payload list of the same modality. For example, if we
             instantiate a ``TextPayload`` inherited from ``Payload``, we assign
@@ -1247,56 +1249,44 @@ class Payload(Entry):
         ValueError: raised when the modality is not supported.
     """
 
+    cache: Union[str, np.ndarray]
+
     def __init__(
         self,
         pack: PackType,
         payload_idx: int = 0,
         uri: Optional[str] = None,
+        modality: str = Modality.Other.name,
     ):
-        from ft.onto.base_ontology import (  # pylint: disable=import-outside-toplevel
-            TextPayload,
-            AudioPayload,
-            ImagePayload,
+        ## TODO: Delete after fix
+        # from ft.onto.base_ontology import (  # pylint: disable=import-outside-toplevel
+        #     TextPayload,
+        #     AudioPayload,
+        #     ImagePayload,
+        # )
+        #
+        # # since we cannot pass different modality from generated ontology, and
+        # # we don't want to import base ontology in the header of the file
+        # # we import it here.
+        # if isinstance(self, TextPayload):
+        #     self._modality = Modality.Text
+        # elif isinstance(self, AudioPayload):
+        #     self._modality = Modality.Audio
+        # elif isinstance(self, ImagePayload):
+        #     self._modality = Modality.Image
+        # else:
+        #     supported_modality = [enum.name for enum in Modality]
+        #     raise ValueError(
+        #         f"The given modality {self._modality.name} is not supported. "
+        #         f"Currently we only support {supported_modality}"
+        #     )
+        self._modality = (
+            Modality[modality] if isinstance(modality, str) else modality
         )
-
-        # since we cannot pass different modality from generated ontology, and
-        # we don't want to import base ontology in the header of the file
-        # we import it here.
-        if isinstance(self, TextPayload):
-            self._modality = Modality.Text
-        elif isinstance(self, AudioPayload):
-            self._modality = Modality.Audio
-        elif isinstance(self, ImagePayload):
-            self._modality = Modality.Image
-        else:
-            supported_modality = [enum.name for enum in Modality]
-            raise ValueError(
-                f"The given modality {self._modality.name} is not supported. "
-                f"Currently we only support {supported_modality}"
-            )
         self._payload_idx: int = payload_idx
         self._uri: Optional[str] = uri
-
+        self.cache: Union[str, np.ndarray] = ""
         super().__init__(pack)
-        self._cache: Union[str, np.ndarray] = ""
-        self.replace_back_operations: Sequence[Tuple] = []
-        self.processed_original_spans: Sequence[Tuple] = []
-        self.orig_text_len: int = 0
-
-    def get_type(self) -> type:
-        """
-        Get the class type of the payload class. For example, suppose a
-        ``TextPayload`` inherits this ``Payload`` class, ``TextPayload`` will be
-        returned.
-
-        Returns:
-            the type of the payload class.
-        """
-        return type(self)
-
-    @property
-    def cache(self) -> Union[str, np.ndarray]:
-        return self._cache
 
     @property
     def modality(self) -> IntEnum:
@@ -1329,6 +1319,7 @@ class Payload(Entry):
     def set_cache(self, data: Union[str, np.ndarray]):
         """
         Load cache data into the payload.
+
 
         Args:
             data: data to be set in the payload. It can be str for text data or
@@ -1363,6 +1354,55 @@ class Payload(Entry):
         # Entry store is being integrated into DataStore
         self.__dict__.update(state)
         self._modality = getattr(Modality, state["_modality"])
+
+
+@dataclass
+class TextPayload(Payload):
+    """
+    A payload for plain text data.
+    """
+
+    def __init__(
+        self, pack: PackType, payload_idx: int = 0, uri: Optional[str] = None
+    ):
+        super().__init__(pack, payload_idx, uri)
+        self._modality = Modality.Text
+
+        self.replace_back_operations: Sequence[Tuple] = []
+        self.processed_original_spans: Sequence[Tuple] = []
+        self.orig_text_len: int = 0
+
+
+@dataclass
+class AudioPayload(Payload):
+    """
+    A payload for audio data.
+
+    Attributes:
+        sample_rate (Optional[int]):
+    """
+
+    sample_rate: Optional[int]
+
+    def __init__(
+        self, pack: PackType, payload_idx: int = 0, uri: Optional[str] = None
+    ):
+        super().__init__(pack, payload_idx, uri)
+        self.sample_rate: Optional[int] = None
+        self._modality = Modality.Audio
+
+
+@dataclass
+class ImagePayload(Payload):
+    """
+    A payload that caches image data.
+    """
+
+    def __init__(
+        self, pack: PackType, payload_idx: int = 0, uri: Optional[str] = None
+    ):
+        super().__init__(pack, payload_idx, uri)
+        self._modality = Modality.Image
 
 
 SinglePackEntries = (

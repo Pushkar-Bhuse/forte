@@ -323,8 +323,8 @@ class BasePack(EntryContainer[EntryType, LinkType, GroupType]):
         Args:
             drop_record: Whether to drop the creation records, default is False.
             json_method: What method is used to convert data pack to json.
-              Only supports `json_pickle` for now. Default value is
-              `json_pickle`.
+              Supports using `jsonpickle` package to serialize the data pack.
+              Default value is `jsonpickle`.
             indent: The indent used for json string.
 
         Returns: String representation of the data pack.
@@ -332,7 +332,9 @@ class BasePack(EntryContainer[EntryType, LinkType, GroupType]):
         if drop_record:
             self._creation_records.clear()
             self._field_records.clear()
-        if json_method == "jsonpickle":
+        if json_method == "json":
+            pass
+        elif json_method == "jsonpickle":
             return jsonpickle.encode(self, unpicklable=True, indent=indent)
         else:
             raise ValueError(f"Unsupported JSON method {json_method}.")
