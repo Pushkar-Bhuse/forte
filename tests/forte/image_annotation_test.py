@@ -14,14 +14,18 @@
 """
 Unit tests for ImageAnnotation.
 """
-import os
 import unittest
+from forte.data.modality import Modality
 import numpy as np
-from typing import Dict
 
 from numpy import array_equal
-from forte.data.ontology.top import ImageAnnotation
+from forte.common.exception import ProcessExecutionException
 from forte.data.data_pack import DataPack
+import unittest
+from sortedcontainers import SortedList
+from forte.data.ontology.top import ImageAnnotation, BoundingBox, Box, Region, ImagePayload
+from forte.data.data_pack import DataPack
+from forte.common import constants
 
 
 class ImageAnnotationTest(unittest.TestCase):
@@ -35,11 +39,6 @@ class ImageAnnotationTest(unittest.TestCase):
         self.line[2, 2] = 1
         self.line[3, 3] = 1
         self.line[4, 4] = 1
-<<<<<<< Updated upstream
-        self.datapack.payloads.append(self.line)
-        self.datapack.image_annotations.append(
-            ImageAnnotation(self.datapack, 0)
-=======
         ip1 = ImagePayload(self.datapack, 0)
         ip1.set_cache(self.line)
         ImageAnnotation(self.datapack)
@@ -49,7 +48,7 @@ class ImageAnnotationTest(unittest.TestCase):
         self.line1[2, 2] = 1
         self.line1[3, 3] = 1
         self.line1[4, 4] = 1
-        ip2 = ImagePayload(self.datapack_1, 0)
+        ip2 = ImagePayload(self.datapack, 1)
         ip2.set_cache(self.line1)
         ImageAnnotation(self.datapack_1)
 
@@ -149,18 +148,12 @@ class ImageAnnotationTest(unittest.TestCase):
         self.assertEqual(bb_list, bb_entries)
         self.assertEqual(
             self.datapack_1._data_store.num_entries(bb_type), len(bb_list)
->>>>>>> Stashed changes
         )
 
-    def test_image_annotation(self):
         self.assertEqual(
-            self.datapack.image_annotations[0].image_payload_idx, 0
+            self.datapack.get_single(ImageAnnotation).image_payload_idx, 0
         )
 
-<<<<<<< Updated upstream
-        self.assertTrue(
-            array_equal(self.datapack.image_annotations[0].image, self.line)
-=======
         self.assertEqual(
             len(img1_box_list), 6
         )  # For each bounding box, there is a grid payload created as well
@@ -183,7 +176,7 @@ class ImageAnnotationTest(unittest.TestCase):
 
         self.assertTrue(
             array_equal(
-                self.datapack._data_store.get_payload_at(Modality.Image, 0).cache, self.line
+                self.datapack._data_store._get_payload_at(Modality.Image, 0).cache, self.line
             )
         )
         new_pack = DataPack.from_string(self.datapack.to_string())
@@ -217,5 +210,84 @@ class ImageAnnotationTest(unittest.TestCase):
         box_type = "forte.data.ontology.top.BoundingBox"
         box_list = len(
             list(self.datapack_1._data_store._DataStore__elements[box_type])
->>>>>>> Stashed changes
         )
+
+        self.datapack_1._data_store.delete_entry(self.bb1.tid)
+        self.assertEqual(
+            self.datapack_1._data_store.num_entries(box_type), box_list - 1
+        )
+
+    def test_update_image_annotation(self):
+        # Check current value
+        self.assertEqual(self.bb1._height, 2)
+
+        # Change a parameter of the entry object
+        self.bb1._height = 5
+
+        # Fetch attribute value from data store
+        bb1_height = self.datapack_1._data_store.get_attribute(
+            self.bb1.tid, "_height"
+        )
+        # Check new value
+        self.assertEqual(bb1_height, 5)
+
+        # Updating Non-Dataclass fields
+
+        # Check current value
+        self.assertEqual(self.bb4.image_payload_idx, 1)
+
+        # Change a parameter of the entry object
+        self.bb4.image_payload_idx = 2
+
+        # Fetch attribute value from data store
+        bb4_payload = self.datapack_1._data_store.get_entry(self.bb4.tid)[0][
+            constants.PAYLOAD_INDEX
+        ]
+        # Check new value
+        self.assertEqual(bb4_payload, 2)
+
+    def test_compute_iou(self):
+        box1 = self.bb1
+        box2 = self.bb2
+        box3 = self.bb3
+        box4 = self.bb4
+
+        iou1 = box1.compute_iou(box4)
+        self.assertEqual(iou1, 0.14285714285714285)
+
+        iou2 = box1.compute_iou(box2)
+        self.assertEqual(iou2, 0)
+
+        iou3 = box1.compute_iou(box3)
+        self.assertEqual(iou3, 0)
+
+    def test_compute_overlap_from_data_store(self):
+        bb1 = self.datapack_1.get_entry(tid=self.bb1.tid)
+        bb2 = self.datapack_1.get_entry(tid=self.bb2.tid)
+
+        overlap = bb1.is_overlapped(bb2)
+        self.assertTrue(overlap)
+
+    def test_add_image_annotation(self):
+
+        new_box = Box(
+            pack=self.datapack_1,
+            cy=7,
+            cx=7,
+            height=4,
+            width=2,
+            image_payload_idx=0,
+        )
+
+        self.assertEqual(
+            len(
+                self.datapack_1._data_store._DataStore__elements[
+                    "forte.data.ontology.top.Box"
+                ]
+            ),
+            1,
+        )
+
+
+if __name__ == "__main__":
+    unittest.main()

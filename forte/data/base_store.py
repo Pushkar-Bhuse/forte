@@ -13,8 +13,9 @@
 # limitations under the License.
 
 from abc import abstractmethod
-from typing import List, Iterator, Tuple, Any, Optional, Dict
+from typing import List, Iterator, Tuple, Any, Optional, Dict, Type
 import json
+from forte.data.ontology.core import Entry
 
 __all__ = ["BaseStore"]
 
@@ -84,6 +85,7 @@ class BaseStore:
             save_attribute: Boolean value indicating whether users want to
                 save attributes for field checks later during deserialization.
                 Attributes and their indices for every entry type will be saved.
+            indent: The indent parameter used to format the JSON file.
         Returns: String representation of the data pack.
         """
         if json_method == "json":
@@ -124,116 +126,32 @@ class BaseStore:
             )
 
     @abstractmethod
-    def add_annotation_raw(
+    def add_entry_raw(
         self,
         type_name: str,
-        begin: int,
-        end: int,
+        attribute_data: List,
+        base_class: Type[Entry],
         tid: Optional[int] = None,
         allow_duplicate: bool = True,
     ) -> int:
-        r"""This function adds an annotation entry with ``begin`` and ``end``
-        indices to the ``type_name`` sorted list in ``self.__elements``,
-        returns the ``tid`` for the inserted entry.
-
-        Args:
-            type_name: The index of Annotation sorted list in ``self.__elements``.
-            begin: Begin index of the entry.
-            end: End index of the entry.
-            tid: ``tid`` of the Annotation entry that is being added.
-                It's optional, and it will be auto-assigned if not given.
-            allow_duplicate: Whether we allow duplicate in the DataStore. When
-                it's set to False, the function will return the ``tid`` of
-                existing entry if a duplicate is found. Default value is True.
-        Returns:
-            ``tid`` of the entry.
-        """
-        raise NotImplementedError
-
-    @abstractmethod
-    def add_link_raw(
-        self,
-        type_name: str,
-        parent_tid: int,
-        child_tid: int,
-        tid: Optional[int] = None,
-    ) -> Tuple[int, int]:
-        r"""This function adds a link entry with ``parent_tid`` and ``child_tid``
-        to the ``type_name`` list in ``self.__elements``, returns the ``tid`` and the
-        ``index_id`` for the inserted entry in the list. This ``index_id`` is the
-        index of the entry in the ``type_name`` list.
-
-        Args:
-            type_name: The index of Link list in ``self.__elements``.
-            parent_tid: ``tid`` of the parent entry.
-            child_tid: ``tid`` of the child entry.
-            tid: ``tid`` of the Link entry that is being added.
-                It's optional, and it will be auto-assigned if not given.
-
-        Returns:
-            ``tid`` of the entry and its index in the ``type_name`` list.
-
-        """
-        raise NotImplementedError
-
-    @abstractmethod
-    def add_group_raw(
-        self, type_name: str, member_type: str, tid: Optional[int] = None
-    ) -> Tuple[int, int]:
-        r"""This function adds a group entry with ``member_type`` to the
-        ``type_name`` list in ``self.__elements``, returns the ``tid`` and the
-        ``index_id`` for the inserted entry in the list. This ``index_id`` is the
-        index of the entry in the ``type_name`` list.
-
-        Args:
-            type_name: The index of Group list in ``self.__elements``.
-            member_type: Fully qualified name of its members.
-
-        Returns:
-            ``tid`` of the entry and its index in the ``type_name`` list.
-
-        """
-        raise NotImplementedError
-
-    @abstractmethod
-    def add_generics_raw(
-        self, type_name: str, tid: Optional[int] = None
-    ) -> Tuple[int, int]:
-        r"""This function adds a generics entry with ``type_name`` to the
-        current data store object. Returns the ``tid`` and the ``index_id``
-        for the inserted entry in the list. This ``index_id`` is the index
-        of the entry in the ``type_name`` list.
-
-        Args:
-            type_name: The fully qualified type name of the new Generics.
-            tid: ``tid`` of generics entry.
-
-        Returns:
-            ``tid`` of the entry and its index in the (``type_id``)th list.
-
-        """
-        raise NotImplementedError
-
-    @abstractmethod
-    def add_audio_annotation_raw(
-        self,
-        type_name: str,
-        begin: int,
-        end: int,
-        tid: Optional[int] = None,
-        allow_duplicate=True,
-    ) -> int:
 
         r"""
-        This function adds an audio annotation entry with ``begin`` and ``end``
-        indices to current data store object. Returns the ``tid`` for the
+        This function provides a general implementation to add all
+        types of entries to the data store. It can add namely
+        Annotation, AudioAnnotation, ImageAnnotation,
+        Link, Group and Generics. Returns the ``tid`` for the
         inserted entry.
 
         Args:
-            type_name: The fully qualified type name of the new AudioAnnotation.
-            begin: Begin index of the entry.
-            end: End index of the entry.
-            tid: ``tid`` of the Annotation entry that is being added.
+            type_name: The fully qualified type name of the new Entry.
+            attribute_data: It is a list that stores attributes relevant to
+                the entry being added. In order to keep the number of attributes
+                same for all entries, the list is populated with trailing None's.
+            base_class: The type of entry to add to the Data Store. This is
+                a reference to the class of the entry that needs to be added
+                to the DataStore. The reference can be to any of the classes
+                supported by the function.
+            tid: ``tid`` of the Entry that is being added.
                 It's optional, and it will be
                 auto-assigned if not given.
             allow_duplicate: Whether we allow duplicate in the DataStore. When
@@ -242,101 +160,6 @@ class BaseStore:
 
         Returns:
             ``tid`` of the entry.
-        """
-        raise NotImplementedError
-
-    @abstractmethod
-    def add_image_annotation_raw(
-        self,
-        type_name: str,
-        image_payload_idx: int,
-        tid: Optional[int] = None,
-    ) -> int:
-
-        r"""
-        This function adds an image annotation entry with ``image_payload_idx``
-        indices to current data store object. Returns the ``tid`` for the
-        inserted entry.
-
-        Args:
-            type_name: The fully qualified type name of the new AudioAnnotation.
-            image_payload_idx: the index of the image payload.
-            tid: ``tid`` of the Annotation entry that is being added.
-                It's optional, and it will be
-                auto-assigned if not given.
-
-        Returns:
-            ``tid`` of the entry.
-        """
-        raise NotImplementedError
-
-    @abstractmethod
-    def add_multipack_generic_raw(
-        self, type_name: str, tid: Optional[int] = None
-    ) -> Tuple[int, int]:
-        r"""This function adds a multi pack generic entry with ``type_name`` to
-        the current data store object. Returns the ``tid`` and the ``index_id``
-        for the inserted entry in the list. This ``index_id`` is the index
-        of the entry in the ``type_name`` list.
-
-        Args:
-            type_name: The fully qualified type name of the new Generics.
-            tid: ``tid`` of multi pack generic entry.
-
-        Returns:
-            ``tid`` of the entry and its index in the (``type_id``)th list.
-
-        """
-        raise NotImplementedError
-
-    @abstractmethod
-    def add_multipack_link_raw(
-        self,
-        type_name: str,
-        parent_pack_id: int,
-        parent_tid: int,
-        child_pack_id: int,
-        child_tid: int,
-        tid: Optional[int] = None,
-    ) -> Tuple[int, int]:
-        r"""This function adds a multi pack link entry with ``parent_tid`` and
-        ``child_tid`` to current data store object. Returns the ``tid`` and
-        the ``index_id`` for the inserted entry in the list. This ``index_id``
-        is the index of the entry in the ``type_name`` list.
-
-        Args:
-            type_name:  The fully qualified type name of the new
-                ``MultiPackLink``.
-            parent_pack_id: ``pack_id`` of the parent entry.
-            parent_tid: ``tid`` of the parent entry.
-            child_pack_id: ``pack_id`` of the child entry.
-            child_tid: ``tid`` of the child entry.
-            tid: ``tid`` of the ``MultiPackLink`` entry that is being added.
-                It's optional, and it will be auto-assigned if not given.
-
-        Returns:
-            ``tid`` of the entry and its index in the ``type_name`` list.
-        """
-        raise NotImplementedError
-
-    @abstractmethod
-    def add_multipack_group_raw(
-        self, type_name: str, member_type: str, tid: Optional[int] = None
-    ) -> Tuple[int, int]:
-        r"""This function adds a multi pack group entry with ``member_type`` to
-        the current data store object. Returns the ``tid`` and the ``index_id``
-        for the inserted entry in the list. This ``index_id`` is the index
-        of the entry in the ``type_name`` list.
-
-        Args:
-            type_name: The fully qualified type name of the new
-                ``MultiPackGroup``.
-            member_type: Fully qualified name of its members.
-            tid: ``tid`` of the ``MultiPackGroup`` entry that is being added.
-                It's optional, and it will be auto-assigned if not given.
-
-        Returns:
-            ``tid`` of the entry and its index in the (``type_id``)th list.
         """
         raise NotImplementedError
 
