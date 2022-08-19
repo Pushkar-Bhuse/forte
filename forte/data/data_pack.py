@@ -465,7 +465,7 @@ class DataPack(BasePack[Entry, Link, Group]):
 
         """
         supported_modality = [enum.name for enum in Modality]
-
+        payloads_length: int = 0
         try:
             # if modality.name == "text":
             if modality == Modality.Text:
@@ -1400,10 +1400,10 @@ class DataPack(BasePack[Entry, Link, Group]):
                 )
 
             a_dict["parent"].append(
-                np.where(data[parent_type]["tid"] == link.parent)[0][0]
+                np.where(data[parent_type]["tid"] == link.parent.tid)[0][0]  # type: ignore
             )
             a_dict["child"].append(
-                np.where(data[child_type]["tid"] == link.child)[0][0]
+                np.where(data[child_type]["tid"] == link.child.tid)[0][0]  # type: ignore
             )
 
             for field in fields:
@@ -1631,13 +1631,13 @@ class DataPack(BasePack[Entry, Link, Group]):
         self._entry_converter.save_entry_object(entry=entry, pack=self)
 
         if isinstance(entry, Payload):
-            if entry.modality == Modality.Text:
+            if Modality.Text.name == entry.modality_name:
                 entry.set_payload_index(len(self.text_payloads))
                 self.text_payloads.append(entry)
-            elif entry.modality == Modality.Audio:
+            elif Modality.Audio.name == entry.modality_name:
                 entry.set_payload_index(len(self.audio_payloads))
                 self.audio_payloads.append(entry)
-            elif entry.modality == Modality.Image:
+            elif Modality.Image.name == entry.modality_name:
                 entry.set_payload_index(len(self.image_payloads))
                 self.image_payloads.append(entry)
 
