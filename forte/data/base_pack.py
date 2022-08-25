@@ -791,13 +791,13 @@ class BasePack(EntryContainer[EntryType, LinkType, GroupType]):
         return entry_set
 
     def is_created_by(
-        self, entry: Entry, components: Union[str, Iterable[str]]
+        self, entry: Union[Entry, int], components: Union[str, Iterable[str]]
     ) -> bool:
         """
         Check if the entry is created by any of the provided components.
 
         Args:
-            entry: The entry to check.
+            entry: `tid` of the entry or the entry object to check
             components: The list of component names.
 
         Returns:
@@ -807,7 +807,7 @@ class BasePack(EntryContainer[EntryType, LinkType, GroupType]):
             components = [components]
 
         for c in components:
-            if entry.tid in self._creation_records[c]:
+            if entry in self._creation_records[c]:
                 break
         else:
             # The entry not created by any of these components.

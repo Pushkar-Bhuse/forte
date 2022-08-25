@@ -231,8 +231,8 @@ class Link(BaseLink):
 
     parent_type: str
     child_type: str
-    parent: Optional[Entry]
-    child: Optional[Entry]
+    parent: Optional[int]
+    child: Optional[int]
 
     ParentType = Entry
     ChildType = Entry
@@ -277,7 +277,7 @@ class Link(BaseLink):
                 f"The parent of {type(self)} should be an "
                 f"instance of {self.ChildType}, but get {type(child)}"
             )
-        self.child = child
+        self.child = child.tid
 
     def get_parent(self) -> Entry:
         r"""Get the parent entry of the link.
@@ -317,7 +317,7 @@ class Group(BaseGroup[Entry]):
     a "coreference group" is a group of coreferential entities. Each group will
     store a set of members, no duplications allowed.
     """
-    members: FList[Entry]
+    members: List[int]
     member_type: str
 
     MemberType = Entry
@@ -345,7 +345,7 @@ class Group(BaseGroup[Entry]):
                 f"The members of {type(self)} should be "
                 f"instances of {self.MemberType}, but got {type(member)}"
             )
-        self.members.append(member)
+        self.members.append(member.tid)
 
     def get_members(self) -> List[Entry]:
         r"""Get the member entries in the group. The function will retrieve
@@ -365,7 +365,7 @@ class Group(BaseGroup[Entry]):
         member_entries = []
         if self.members is not None:
             for m in self.members:
-                member_entries.append(m)
+                member_entries.append(self.pack.get_entry(m))
         return member_entries
 
 
@@ -403,11 +403,6 @@ class MultiPackLink(MultiEntry, BaseLink):
         self.parent_type = get_full_module_name(self.ParentType)
         self.child_type = get_full_module_name(self.ChildType)
         super().__init__(pack, parent, child)
-
-        # if parent is not None:
-        #     self.set_parent(parent)
-        # if child is not None:
-        #     self.set_child(child)
 
     def parent_id(self) -> int:
         """
@@ -520,7 +515,7 @@ class MultiPackGroup(MultiEntry, BaseGroup[Entry]):
     of members.
     """
     member_type: str
-    members: Optional[FList[Entry]]
+    members: List[Tuple[int, int]]
 
     MemberType = Entry
 
@@ -542,17 +537,13 @@ class MultiPackGroup(MultiEntry, BaseGroup[Entry]):
                 f"The members of {type(self)} should be "
                 f"instances of {self.MemberType}, but got {type(member)}"
             )
-        if self.members is None:
-            self.members = cast(FList, [member])
-        else:
-            self.members.append(member)
+        self.members.append((member.pack_id, member.tid))
 
     def get_members(self) -> List[Entry]:
         members = []
         if self.members is not None:
-            member_data = self.members
-            for m in member_data:
-                members.append(m)
+            for pack_idx, member_tid in self.members:
+                members.append(self.pack.get_subentry(pack_idx, member_tid))
         return members
 
 
