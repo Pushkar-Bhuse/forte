@@ -16,6 +16,7 @@ Unit tests for data pack related operations.
 """
 import os
 import logging
+from tokenize import group
 import unittest
 from typing import List, Tuple
 
@@ -370,6 +371,97 @@ class DataPackTest(unittest.TestCase):
             len(list(self.data_pack.get_data(Sentence))), num_sent - 1
         )
 
+    def test_get_primitive_entry(self):
+        sentences = list(self.data_pack.get(Sentence))
+        first_sent = sentences[0]
+
+        primitive_sent = self.data_pack.get_entry_raw(
+            first_sent.tid
+        )
+
+        self.assertDictEqual(
+            primitive_sent,
+            {
+                'tid': first_sent.tid,
+                'type':'ft.onto.base_ontology.Sentence',
+                'begin': 0,
+                'end': 164,
+                'payload_idx': 0,
+                'speaker': '-',
+                'part_id': 0,
+                'sentiment': {},
+                'classification': {},
+                'classifications': {}}
+        )
+
+        # Getting a group. In groups, members are stored as a list
+        # of integers. These integers represent the tid of entries
+        # present in the group.
+        groups = list(self.data_pack.get(CoreferenceGroup))
+        first_group = groups[0]
+
+        primitive_group = self.data_pack.get_entry_raw(
+            first_group.tid
+        )
+
+        self.assertDictEqual(
+            primitive_group,
+            {
+                'members': first_group.members,
+                'member_type': first_group.member_type,
+                'tid': first_group.tid,
+                'type': 'ft.onto.base_ontology.CoreferenceGroup'
+            }
+        )
+
+        with self.assertRaises(KeyError):
+            _ = self.data_pack.get_entry_raw(
+                tid = 0
+            )
+
+    def test_add_primitive_entry(self):
+        sentences = list(self.data_pack.get(Sentence))
+
+        sample_entry = {
+            "type": "ft.onto.base_ontology.Sentence",
+            "begin": 10,
+            "end": 20,
+        }
+
+        entry_tid = self.data_pack.add_entry_raw(
+            entry_data = sample_entry,
+            allow_duplicates = False
+        )
+
+        # The test below ensures that there is no entry object created
+        # For the entry added to the data store.
+        with self.assertRaisesRegex(
+            KeyError,
+            f"There is no entry with tid '{entry_tid}'' in this datapack"
+        ):
+            _ = list(self.data_pack.get(Sentence))
+
+        created_sent = self.data_pack.get_entry_raw(entry_tid)
+        self.assertDictEqual(
+            created_sent,
+            {
+                'begin': 10,
+                'end': 20,
+                'payload_idx': 0,
+                'speaker': None,
+                'part_id': None,
+                'sentiment': {},
+                'classification': {},
+                'classifications': {},
+                'tid': entry_tid,
+                'type': 'ft.onto.base_ontology.Sentence'
+            }
+        )
+
+
+
+
+        
 
 if __name__ == "__main__":
     unittest.main()

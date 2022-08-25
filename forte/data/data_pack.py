@@ -1409,11 +1409,11 @@ class DataPack(BasePack[Entry, Link, Group]):
                 )
 
             a_dict["parent"].append(
-                np.where(data[parent_type]["tid"] == link.parent.tid)[0][0]  # type: ignore
+                np.where(data[parent_type]["tid"] == link.parent)[0][0]
             )
 
             a_dict["child"].append(
-                np.where(data[child_type]["tid"] == link.child.tid)[0][0]  # type: ignore
+                np.where(data[child_type]["tid"] == link.child)[0][0]
             )
 
             for field in fields:
@@ -1631,9 +1631,7 @@ class DataPack(BasePack[Entry, Link, Group]):
             else:
                 # range_annotation is given by the tid of the entry it
                 # represents
-                range_raw = self._data_store.transform_data_store_entry(
-                    self.get_entry_raw(range_annotation)
-                )
+                range_raw = self.get_entry_raw(range_annotation)
                 range_begin = range_raw[BEGIN_ATTR_NAME]
                 range_end = range_raw[END_ATTR_NAME]
 
@@ -1690,7 +1688,7 @@ class DataPack(BasePack[Entry, Link, Group]):
 
     def _save_entry_to_data_store(self, entry: Entry):
         r"""Save an existing entry object into DataStore"""
-        self._entry_converter.save_entry_object(entry=entry, pack=self)
+        self._entry_converter.save_entry(entry=entry, pack=self)
 
         if isinstance(entry, Payload):
             if Modality.Text.name == entry.modality_name:

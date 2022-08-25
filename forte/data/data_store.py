@@ -1407,7 +1407,7 @@ class DataStore(BaseStore):
             #   'classification': {},
             #   'classifications': {},
             #   'tid': 171792711812874531962213686690228233530,
-            #   'type': 'ft.onto.base_ontology.Sentence'}
+            #   'type': 'ft.onto.base_ontology.Sentence'
             # }
 
 

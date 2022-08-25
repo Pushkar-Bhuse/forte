@@ -67,7 +67,7 @@ make sure it available across the ontology system:
     1. Create a new top level class that inherits from `Entry` or `MultiEntry`
     2. Add the new class to `SinglePackEntries` or `MultiPackEntries`
     3. Register a new method in `DataStore`: `add_<new_entry>_raw()`
-    4. Insert a new conditional branch in `EntryConverter.save_entry_object()`
+    4. Insert a new conditional branch in `EntryConverter.save_entry()`
 """
 
 
@@ -263,7 +263,7 @@ class Link(BaseLink):
                 f"The parent of {type(self)} should be an "
                 f"instance of {self.ParentType}, but get {type(parent)}"
             )
-        self.parent = parent
+        self.parent = parent.tid
 
     def set_child(self, child: Entry):
         r"""This will set the `child` of the current instance with given Entry.
@@ -292,7 +292,7 @@ class Link(BaseLink):
             )
         if self.parent is None:
             raise ValueError("The parent of this entry is not set.")
-        return self.parent
+        return self.pack.get_entry(self.parent)
 
     def get_child(self) -> Entry:
         r"""Get the child entry of the link.
@@ -307,7 +307,7 @@ class Link(BaseLink):
             )
         if self.child is None:
             raise ValueError("The child of this entry is not set.")
-        return self.child
+        return self.pack.get_entry(self.child)
 
 
 # pylint: disable=duplicate-bases

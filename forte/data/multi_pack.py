@@ -970,7 +970,7 @@ class MultiPack(BasePack[Entry, MultiPackLink, MultiPackGroup]):
 
     def _save_entry_to_data_store(self, entry: Entry):
         r"""Save an existing entry object into DataStore"""
-        self._entry_converter.save_entry_object(entry=entry, pack=self)
+        self._entry_converter.save_entry(entry=entry, pack=self)
 
     def _get_entry_from_data_store(self, tid: int) -> EntryType:
         r"""Generate a class object from entry data in DataStore"""

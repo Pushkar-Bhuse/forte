@@ -707,8 +707,107 @@ class BasePack(EntryContainer[EntryType, LinkType, GroupType]):
         return entry
 
     def get_entry_raw(self, tid: int) -> List:
-        r"""Retrieve the raw entry data in list format from DataStore."""
-        return self._data_store.get_entry(tid=tid)[0]
+        r"""Retrieve the raw entry data in list format from DataStore
+        return it in a dictionary format to make it more understandable.
+        Args:
+            tid: An integer representing the `tid` of the entry to be
+            fetched.
+
+        Returns:
+            A dictionary representing the `dataclass` attributes of the
+            fetched entry. The sample entry can be seen as follows:
+
+            .. code-block:: python
+
+                transformed_entry = {
+                    'begin': 0,
+                    'end': 164,
+                    'payload_idx': 0,
+                    'speaker': '-',
+                    'part_id': 0,
+                    'sentiment': {},
+                    'classification': {},
+                    'classifications': {},
+                    'tid': 171792711812874531962213686690228233530,
+                    'type': 'ft.onto.base_ontology.Sentence'
+                }
+
+            Note that along with all `dataclass` attributes, the
+            dictionary containes the `tid` and the fully qualified
+            type name of the entry it fetched (in this case, it is
+            an entry of type :class:`~ft.onto.base_ontology.Sentence`)
+        """
+        return self._data_store.transform_data_store_entry(
+            self._data_store.get_entry(tid=tid)[0]
+        )
+
+    def add_entry_raw(
+        self, entry_data: Dict[str, Any], allow_duplicates: bool = True
+    ) -> int:
+        r"""
+        This methods adds an entry to a data store without having to
+        create an object of that entry. This method takes in a dictionary
+        that stores the attributes of the entry and stores it as a a data
+        store entry.
+
+        Args:
+            entry_data: A dictionary that stores the `dataclass` attributes
+                of the entry along with the fully qualified type name. As an
+                optional key, it can store the `tid` of the entry as well. If
+                this key is not provided, a new `tid` id generated at the time
+                of creation of the data store entry. 
+
+                Additionally, if a `dataclass` attribute is not provided in
+                `entry_data`, the attributes default value is stored in the
+                data store entry. A sample input for the creation of an entry of
+                of type :class:`~ft.onto.base_ontology.Sentence` is as follows:
+
+                .. code-block:: python
+
+                    sample_entry = {
+                        "type": "ft.onto.base_ontology.Sentence",
+                        "begin": 10,
+                        "end": 20,
+                    }
+
+                The corresponding entry stored in the data store 
+                (when fetched using :meth:`~forte.data.base_pack.get_entry_raw`)
+                the would look like:
+
+                .. code-block:: python
+
+                    entry_tid = data_pack.add_entry_raw(
+                        sample_entry
+                    )
+                     
+                    entry = data_pack.get_entry_raw(entry_tid)
+
+                    # entry = {
+                    #    'begin': 10,
+                    #    'end': 20,
+                    #    'payload_idx': 0,
+                    #   'speaker': None,
+                    #    'part_id': None,
+                    #    'sentiment': {},
+                    #    'classification': {},
+                    #    'classifications': {},
+                    #    'tid': entry_tid,
+                    #    'type': 'ft.onto.base_ontology.Sentence'
+                    # }
+            
+            allow_duplicates: Whether we allow duplicate in the data store
+                for this entry.
+
+        Returns:
+            The `tid` of the entry that has been stored in the data_store.
+        """
+        entry_tid = self._entry_converter.save_entry(
+            entry=None,
+            pack=self,
+            attribute_data=entry_data,
+            allow_duplicate=allow_duplicates,
+        )
+        return entry_tid
 
     @abstractmethod
     def _save_entry_to_data_store(self, entry: Entry):
