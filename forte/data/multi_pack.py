@@ -968,13 +968,31 @@ class MultiPack(BasePack[Entry, MultiPackLink, MultiPackGroup]):
     def view(self):
         return copy.deepcopy(self)
 
-    def _save_entry_to_data_store(self, entry: Entry):
-        r"""Save an existing entry object into DataStore"""
-        self._entry_converter.save_entry(entry=entry, pack=self)
+    def _save_entry_to_data_store(self, entry: Union[Dict[str, Any], Entry]):
+        r"""Save an existing entry from its object or dictionary based
+        representation into DataStore"""
 
-    def _get_entry_from_data_store(self, tid: int) -> EntryType:
-        r"""Generate a class object from entry data in DataStore"""
-        return self._entry_converter.get_entry_object(tid=tid, pack=self)
+        if isinstance(entry, Entry):
+            entry_tid = self._entry_converter.save_entry(entry=entry, pack=self)
+        else:
+            entry_tid = self._entry_converter.save_entry(
+                entry=None, pack=self, attribute_data=entry
+            )
+
+        return entry_tid
+
+    def _get_entry_from_data_store(
+        self, tid: int, get_raw: bool = False
+    ) -> Union[Dict[str, Any], Entry[Any]]:
+        r"""Generate a primitive representation or a class object
+        of entry data in DataStore"""
+
+        if get_raw:
+            return self._data_store.transform_data_store_entry(  # type: ignore
+                self._data_store.get_entry(tid=tid)[0]
+            )
+        else:
+            return self._entry_converter.get_entry_object(tid=tid, pack=self)
 
 
 class MultiIndex(BaseIndex):

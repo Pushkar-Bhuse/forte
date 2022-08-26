@@ -30,6 +30,7 @@ from typing import (
     Dict,
     Any,
     Iterable,
+    cast,
 )
 from functools import partial
 from inspect import isclass
@@ -699,14 +700,14 @@ class BasePack(EntryContainer[EntryType, LinkType, GroupType]):
             entry: EntryType = self._index.get_entry(tid)
         except KeyError:
             # Find entry in DataStore
-            entry = self._get_entry_from_data_store(tid=tid)
+            entry = cast(EntryType, self._get_entry_from_data_store(tid=tid))
         if entry is None:
             raise KeyError(
                 f"There is no entry with tid '{tid}'' in this datapack"
             )
         return entry
 
-    def get_entry_raw(self, tid: int) -> List:
+    def get_entry_raw(self, tid: int) -> Dict[str, Any]:
         r"""Retrieve the raw entry data in list format from DataStore
         return it in a dictionary format to make it more understandable.
         Args:
@@ -737,13 +738,12 @@ class BasePack(EntryContainer[EntryType, LinkType, GroupType]):
             type name of the entry it fetched (in this case, it is
             an entry of type :class:`~ft.onto.base_ontology.Sentence`)
         """
-        return self._data_store.transform_data_store_entry(
-            self._data_store.get_entry(tid=tid)[0]
+        return cast(
+            Dict[str, Any],
+            self._get_entry_from_data_store(tid=tid, get_raw=True),
         )
 
-    def add_entry_raw(
-        self, entry_data: Dict[str, Any], allow_duplicates: bool = True
-    ) -> int:
+    def add_entry_raw(self, entry_data: Dict[str, Any]) -> int:
         r"""
         This methods adds an entry to a data store without having to
         create an object of that entry. This method takes in a dictionary
@@ -755,7 +755,7 @@ class BasePack(EntryContainer[EntryType, LinkType, GroupType]):
                 of the entry along with the fully qualified type name. As an
                 optional key, it can store the `tid` of the entry as well. If
                 this key is not provided, a new `tid` id generated at the time
-                of creation of the data store entry. 
+                of creation of the data store entry.
 
                 Additionally, if a `dataclass` attribute is not provided in
                 `entry_data`, the attributes default value is stored in the
@@ -770,7 +770,7 @@ class BasePack(EntryContainer[EntryType, LinkType, GroupType]):
                         "end": 20,
                     }
 
-                The corresponding entry stored in the data store 
+                The corresponding entry stored in the data store
                 (when fetched using :meth:`~forte.data.base_pack.get_entry_raw`)
                 the would look like:
 
@@ -779,7 +779,7 @@ class BasePack(EntryContainer[EntryType, LinkType, GroupType]):
                     entry_tid = data_pack.add_entry_raw(
                         sample_entry
                     )
-                     
+
                     entry = data_pack.get_entry_raw(entry_tid)
 
                     # entry = {
@@ -794,29 +794,25 @@ class BasePack(EntryContainer[EntryType, LinkType, GroupType]):
                     #    'tid': entry_tid,
                     #    'type': 'ft.onto.base_ontology.Sentence'
                     # }
-            
-            allow_duplicates: Whether we allow duplicate in the data store
-                for this entry.
 
         Returns:
             The `tid` of the entry that has been stored in the data_store.
         """
-        entry_tid = self._entry_converter.save_entry(
-            entry=None,
-            pack=self,
-            attribute_data=entry_data,
-            allow_duplicate=allow_duplicates,
-        )
+        entry_tid = self._save_entry_to_data_store(entry=entry_data)
         return entry_tid
 
     @abstractmethod
-    def _save_entry_to_data_store(self, entry: Entry):
-        r"""Save an existing entry object into DataStore"""
+    def _save_entry_to_data_store(self, entry: Union[Dict[str, Any], Entry]):
+        r"""Save an existing entry from its object or dictionary based
+        representation into DataStore"""
         raise NotImplementedError
 
     @abstractmethod
-    def _get_entry_from_data_store(self, tid: int) -> EntryType:
-        r"""Generate a class object from entry data in DataStore"""
+    def _get_entry_from_data_store(
+        self, tid: int, get_raw: bool = False
+    ) -> Union[Dict[str, Any], EntryType]:
+        r"""Generate a primitive representation or a class object
+        of entry data in DataStore"""
         raise NotImplementedError
 
     @property

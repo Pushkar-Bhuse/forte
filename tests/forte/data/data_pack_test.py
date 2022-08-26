@@ -429,8 +429,7 @@ class DataPackTest(unittest.TestCase):
         }
 
         entry_tid = self.data_pack.add_entry_raw(
-            entry_data = sample_entry,
-            allow_duplicates = False
+            entry_data = sample_entry
         )
 
         # The test below ensures that there is no entry object created

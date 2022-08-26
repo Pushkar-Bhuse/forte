@@ -43,6 +43,12 @@ MEMBER_TYPE_ATTR_NAME = "member_type"
 # The name of the attribute storing the list of member entries tid in Group entries
 MEMBER_TID_ATTR_NAME = "members"
 
+# The name of the attribute storing the modality name of the Payload entry
+MODALITY_ATTR_NAME = "modality_name"
+
+# The name of the attribute storing the payload index of the Payload entry
+PAYLOAD_IDX_ATTR_NAME = "payload_idx"
+
 # The index where the first attribute appears in the internal entry data of DataStore.
 ATTR_BEGIN_INDEX = 2
 

@@ -21,6 +21,7 @@ import logging
 from heapq import heappush, heappop
 from sortedcontainers import SortedList
 from typing_inspect import get_origin, get_args, is_generic_type
+from forte.data.modality import Modality
 
 from forte.utils import get_class
 from forte.utils.utils import get_full_module_name
@@ -32,6 +33,7 @@ from forte.data.ontology.top import (
     AudioAnnotation,
     Group,
     Link,
+    Payload,
     MultiPackGroup,
     MultiPackLink,
     SinglePackEntries,
@@ -1229,6 +1231,20 @@ class DataStore(BaseStore):
             entry[parent_idx] = attribute_data[0]
             entry[child_idx] = attribute_data[1]
 
+        elif self._is_subclass(type_name, Payload):
+            mod_name_idx = self.get_datastore_attr_idx(
+                type_name, constants.MODALITY_ATTR_NAME
+            )
+            entry[mod_name_idx] = attribute_data[0]
+
+            supported_modality = [enum.name for enum in Modality]
+            if entry[mod_name_idx] not in supported_modality:
+                raise ValueError(
+                    f"The given modality {entry[mod_name_idx]} is"
+                    f"not supported. Currently we only support"
+                    f"{supported_modality}"
+                )
+
         return entry
 
     def add_entry_raw(
@@ -1369,53 +1385,57 @@ class DataStore(BaseStore):
 
     def transform_data_store_entry(self, entry: List[Any]) -> Dict:
         r"""
-        This method converts a raw data store entry into a format more easily
-        understandable to users. Data Store entries are stored as lists and
-        are not very easily understandable. This method converts ``DataStore``
-        entries from a list format to a dictionary based format where the key
-        is the names of the attributes of an entry and the value is the values
-        corresponding attributes in the data store entry.
-        For example:
+                This method converts a raw data store entry into a format more easily
+                understandable to users. Data Store entries are stored as lists and
+                are not very easily understandable. This method converts ``DataStore``
+                entries from a list format to a dictionary based format where the key
+                is the names of the attributes of an entry and the value is the values
+                corresponding attributes in the data store entry.
+                For example:
 
-        .. code-block:: python
+                .. code-block:: python
 
-            # Entry of type 'ft.onto.base_ontology.Sentence'
-            data_store_entry = [
-                171792711812874531962213686690228233530,
-                'ft.onto.base_ontology.Sentence',
-                0,
-                164,
-                0,
-                '-',
-                0,
-                {},
-                {},
-                {}
-            ]
+                    # Entry of type 'ft.onto.base_ontology.Sentence'
+                    data_store_entry = [
+                        171792711812874531962213686690228233530,
+                        'ft.onto.base_ontology.Sentence',
+                        0,
+                        164,
+                        0,
+                        '-',
+                        0,
+                        {},
+                        {},
+                        {}
+                    ]
 
-            transformed_entry = pack.transform_data_store_entry(
-                data_store_entry
-            )
+                    transformed_entry = pack.transform_data_store_entry(
+                        data_store_entry
+                    )
 
-            # transformed_entry = {
-            #   'begin': 0,
-            #   'end': 164,
-            #   'payload_idx': 0,
-            #   'speaker': '-',
-            #   'part_id': 0,
-            #   'sentiment': {},
-            #   'classification': {},
-            #   'classifications': {},
-            #   'tid': 171792711812874531962213686690228233530,
-            #   'type': 'ft.onto.base_ontology.Sentence'
-            # }
+                    # transformed_entry = {
+                    #   'begin': 0,
+                    #   'end': 164,
+                    #   'payload_idx': 0,
+                    #   'speaker': '-',
+                    #   'part_id': 0,
+                    #   'sentiment': {},
+                    #   'classification': {},
+                    #   'classifications': {},
+                    #   'tid': 171792711812874531962213686690228233530,
+        <<<<<<< Updated upstream
+                    #   'type': 'ft.onto.base_ontology.Sentence'
+        =======
+                    #   'type': 'ft.onto.base_ontology.Sentence'}
+        >>>>>>> Stashed changes
+                    # }
 
 
-        Args:
-            entry: A list representing a valid data store entry
+                Args:
+                    entry: A list representing a valid data store entry
 
-        Returns:
-            a dictionary representing the the input data store entry
+                Returns:
+                    a dictionary representing the the input data store entry
         """
 
         attribute_positions = self.get_attribute_positions(

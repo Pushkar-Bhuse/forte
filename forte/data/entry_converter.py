@@ -79,7 +79,7 @@ class EntryConverter:
 
         if attribute_data is not None:
             attributes = attribute_data
-            tid = attributes.get("tid", None)
+            tid = attributes.pop("tid", None)
             if "type" not in attributes:
                 raise KeyError(
                     "The type of entry needs to be specified. This can "
@@ -102,8 +102,8 @@ class EntryConverter:
                 # Once an attribute is accessed from the _cached_attribute_data
                 # dict, it must be removed
                 attribute_data=[
-                    attributes[constants.BEGIN_ATTR_NAME],
-                    attributes[constants.END_ATTR_NAME],
+                    attributes.pop(constants.BEGIN_ATTR_NAME),
+                    attributes.pop(constants.END_ATTR_NAME),
                 ],
             )
         elif data_store_ref._is_subclass(type_name, Link):
@@ -113,8 +113,8 @@ class EntryConverter:
                 # Once an attribute is accessed from the _cached_attribute_data
                 # dict, it must be removed
                 attribute_data=[
-                    attributes[constants.PARENT_TYPE_ATTR_NAME],
-                    attributes[constants.CHILD_TYPE_ATTR_NAME],
+                    attributes.pop(constants.PARENT_TYPE_ATTR_NAME),
+                    attributes.pop(constants.CHILD_TYPE_ATTR_NAME),
                 ],
             )
         elif data_store_ref._is_subclass(type_name, Group):
@@ -123,7 +123,9 @@ class EntryConverter:
                 tid=tid,
                 # Once an attribute is accessed from the _cached_attribute_data
                 # dict, it must be removed
-                attribute_data=[attributes[constants.MEMBER_TYPE_ATTR_NAME]],
+                attribute_data=[
+                    attributes.pop(constants.MEMBER_TYPE_ATTR_NAME)
+                ],
             )
         elif data_store_ref._is_subclass(type_name, Generics):
             entry_tid = data_store_ref.add_entry_raw(
@@ -138,8 +140,8 @@ class EntryConverter:
                 # Once an attribute is accessed from the _cached_attribute_data
                 # dict, it must be removed
                 attribute_data=[
-                    attributes[constants.BEGIN_ATTR_NAME],
-                    attributes[constants.END_ATTR_NAME],
+                    attributes.pop(constants.BEGIN_ATTR_NAME),
+                    attributes.pop(constants.END_ATTR_NAME),
                 ],
             )
         elif data_store_ref._is_subclass(type_name, ImageAnnotation):
@@ -154,6 +156,7 @@ class EntryConverter:
                 type_name=type_name,
                 tid=tid,
                 allow_duplicate=allow_duplicate,
+                attribute_data=[attributes.pop(constants.MODALITY_ATTR_NAME)],
             )
         elif data_store_ref._is_subclass(type_name, MultiPackLink):
             entry_tid = data_store_ref.add_entry_raw(
@@ -162,8 +165,8 @@ class EntryConverter:
                 # Once an attribute is accessed from the _cached_attribute_data
                 # dict, it must be removed
                 attribute_data=[
-                    attributes[constants.PARENT_TYPE_ATTR_NAME],
-                    attributes[constants.CHILD_TYPE_ATTR_NAME],
+                    attributes.pop(constants.PARENT_TYPE_ATTR_NAME),
+                    attributes.pop(constants.CHILD_TYPE_ATTR_NAME),
                 ],
             )
         elif data_store_ref._is_subclass(type_name, MultiPackGroup):
@@ -172,7 +175,9 @@ class EntryConverter:
                 tid=tid,
                 # Once an attribute is accessed from the _cached_attribute_data
                 # dict, it must be removed
-                attribute_data=[attributes[constants.MEMBER_TYPE_ATTR_NAME]],
+                attribute_data=[
+                    attributes.pop(constants.MEMBER_TYPE_ATTR_NAME)
+                ],
             )
         elif data_store_ref._is_subclass(type_name, MultiPackGeneric):
             entry_tid = data_store_ref.add_entry_raw(

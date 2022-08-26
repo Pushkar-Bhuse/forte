@@ -37,7 +37,12 @@ from forte.common.exception import (
     ProcessExecutionException,
     UnknownOntologyClassException,
 )
-from forte.common.constants import TID_INDEX, BEGIN_ATTR_NAME, END_ATTR_NAME
+from forte.common.constants import (
+    TID_INDEX,
+    BEGIN_ATTR_NAME,
+    END_ATTR_NAME,
+    PAYLOAD_IDX_ATTR_NAME,
+)
 from forte.data import data_utils_io
 from forte.data.data_store import DataStore
 from forte.data.entry_converter import EntryConverter
@@ -171,9 +176,9 @@ class DataPack(BasePack[Entry, Link, Group]):
         self._entry_converter: EntryConverter = EntryConverter()
         self.image_annotations: List[ImageAnnotation] = []
 
-        self.text_payloads: List[Payload] = []
-        self.audio_payloads: List[Payload] = []
-        self.image_payloads: List[Payload] = []
+        self.text_payloads: List[Union[Dict[str, Any], Entry]] = []
+        self.audio_payloads: List[Union[Dict[str, Any], Entry]] = []
+        self.image_payloads: List[Union[Dict[str, Any], Entry]] = []
 
         self._index: DataIndex = DataIndex()
 
@@ -1686,24 +1691,64 @@ class DataPack(BasePack[Entry, Link, Group]):
         #   better solution.
         self.__dict__.update(datapack.__dict__)
 
-    def _save_entry_to_data_store(self, entry: Entry):
-        r"""Save an existing entry object into DataStore"""
-        self._entry_converter.save_entry(entry=entry, pack=self)
+    def _save_entry_to_data_store(
+        self, entry: Union[Dict[str, Any], Entry]
+    ) -> int:
 
-        if isinstance(entry, Payload):
-            if Modality.Text.name == entry.modality_name:
-                entry.set_payload_index(len(self.text_payloads))
+        r"""Save an existing entry from its object or dictionary based
+        representation into DataStore"""
+
+        if isinstance(entry, Entry):
+            entry_type = get_full_module_name(entry)
+            entry_tid = self._entry_converter.save_entry(entry=entry, pack=self)
+        else:
+            # We must store the entry type before saving the entry in DataStore
+            # since on saving into the DataStore, the dictionary storing entry
+            # data is cleared.
+            entry_type = entry["type"]
+            entry_tid = self._entry_converter.save_entry(
+                entry=None, pack=self, attribute_data=entry
+            )
+
+        # pylint: disable=protected-access
+        if self._data_store._is_subclass(entry_type, Payload):
+            modality_name: str
+            if isinstance(entry, Entry):
+                entry = cast(Payload, entry)
+                modality_name = entry.modality_name
+            else:
+                modality_name = entry["modality_name"]
+
+            if Modality.Text.name == modality_name:
+                self._data_store.set_attribute(
+                    entry_tid, PAYLOAD_IDX_ATTR_NAME, len(self.text_payloads)
+                )
                 self.text_payloads.append(entry)
-            elif Modality.Audio.name == entry.modality_name:
-                entry.set_payload_index(len(self.audio_payloads))
+            elif Modality.Audio.name == modality_name:
+                self._data_store.set_attribute(
+                    entry_tid, PAYLOAD_IDX_ATTR_NAME, len(self.audio_payloads)
+                )
                 self.audio_payloads.append(entry)
-            elif Modality.Image.name == entry.modality_name:
-                entry.set_payload_index(len(self.image_payloads))
+            elif Modality.Image.name == modality_name:
+                self._data_store.set_attribute(
+                    entry_tid, PAYLOAD_IDX_ATTR_NAME, len(self.image_payloads)
+                )
                 self.image_payloads.append(entry)
 
-    def _get_entry_from_data_store(self, tid: int) -> EntryType:
-        r"""Generate a class object from entry data in DataStore"""
-        return self._entry_converter.get_entry_object(tid=tid, pack=self)
+        return entry_tid
+
+    def _get_entry_from_data_store(
+        self, tid: int, get_raw: bool = False
+    ) -> Union[Dict[str, Any], Entry[Any]]:
+        r"""Generate a primitive representation or a class object
+        of entry data in DataStore"""
+
+        if get_raw:
+            return self._data_store.transform_data_store_entry(
+                self._data_store.get_entry(tid=tid)[0]
+            )
+        else:
+            return self._entry_converter.get_entry_object(tid=tid, pack=self)
 
 
 class DataIndex(BaseIndex):
